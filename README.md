@@ -296,20 +296,15 @@ Keterangan warna:
 <!-- Tambahkan screenshot docker ps atau docker stats -->
 ![Docker Stats](screenshots/docker-stats.png)
 
-> **Cara menambahkan screenshot:**
-> 1. Buat folder `screenshots/` di root project
-> 2. Ambil screenshot dan simpan dengan nama sesuai di atas
-> 3. Push ke GitHub — gambar akan otomatis tampil di README
-
 ---
 
 ## 👤 Author
 
 | Info | Detail |
 |---|---|
-| Nama | *(isi nama kamu)* |
-| NIM | *(isi NIM kamu)* |
-| Mata Kuliah | *(isi nama mata kuliah)* |
+| Nama | Muhammad Faizal |
+| NIM | 105841104023 |
+| Mata Kuliah | Scalable system |
 | Semester | 6 |
 
 ---
