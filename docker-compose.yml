@@ -1,0 +1,59 @@
+networks:
+  lb-network:
+    driver: bridge
+
+services:
+  server-1:
+    build:
+      context: ./backend-server
+    container_name: server-1
+    environment:
+      - SERVER_ID=server-1
+      - PORT=3001
+    expose:
+      - "3001"
+    networks:
+      - lb-network
+    restart: unless-stopped
+
+  server-2:
+    build:
+      context: ./backend-server
+    container_name: server-2
+    environment:
+      - SERVER_ID=server-2
+      - PORT=3002
+    expose:
+      - "3002"
+    networks:
+      - lb-network
+    restart: unless-stopped
+
+  server-3:
+    build:
+      context: ./backend-server
+    container_name: server-3
+    environment:
+      - SERVER_ID=server-3
+      - PORT=3003
+    expose:
+      - "3003"
+    networks:
+      - lb-network
+    restart: unless-stopped
+
+  load-balancer:
+    build:
+      context: ./load-balancer
+    container_name: load-balancer
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+    depends_on:
+      - server-1
+      - server-2
+      - server-3
+    networks:
+      - lb-network
+    restart: unless-stopped

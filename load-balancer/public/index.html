@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Load Balancer Dashboard</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3e;
+      --text: #e2e8f0;
+      --muted: #8892a4;
+      --accent: #4f8ef7;
+      --green: #34d399;
+      --yellow: #fbbf24;
+      --red: #f87171;
+      --cyan: #22d3ee;
+      --magenta: #e879f9;
+      --s1: #22d3ee;
+      --s2: #34d399;
+      --s3: #e879f9;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 1px;
+    }
+    header h1 span { color: var(--text); }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: var(--red);
+      transition: background 0.3s;
+    }
+    .dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+    /* ── Grid ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    /* ── Algorithm selector ── */
+    .algo-buttons {
+      display: flex;
+      gap: 10px;
+    }
+    .algo-btn {
+      flex: 1;
+      padding: 10px 16px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .algo-btn:hover { border-color: var(--accent); color: var(--text); }
+    .algo-btn.active {
+      border-color: var(--accent);
+      background: rgba(79,142,247,0.15);
+      color: var(--accent);
+    }
+    .algo-btn.active.lc {
+      border-color: var(--magenta);
+      background: rgba(232,121,249,0.15);
+      color: var(--magenta);
+    }
+
+    /* ── Test controls ── */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .count-input {
+      width: 80px;
+      padding: 8px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9rem;
+      text-align: center;
+    }
+    .send-btn {
+      padding: 10px 20px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .send-btn:hover { background: #3a7ce0; }
+    .send-btn:active { background: #2860c0; }
+    .clear-btn {
+      padding: 10px 16px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .clear-btn:hover { border-color: var(--red); color: var(--red); }
+
+    /* ── Server cards ── */
+    .servers-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .server-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+    .server-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .server-card.s1::before { background: var(--s1); }
+    .server-card.s2::before { background: var(--s2); }
+    .server-card.s3::before { background: var(--s3); }
+    .server-card.s1 { border-color: rgba(34,211,238,0.3); }
+    .server-card.s2 { border-color: rgba(52,211,153,0.3); }
+    .server-card.s3 { border-color: rgba(232,121,249,0.3); }
+
+    .server-name {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .s1 .server-name { color: var(--s1); }
+    .s2 .server-name { color: var(--s2); }
+    .s3 .server-name { color: var(--s3); }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      margin-bottom: 6px;
+    }
+    .stat-label { color: var(--muted); }
+    .stat-value { font-weight: 600; color: var(--text); }
+
+    .conn-bar {
+      height: 6px;
+      border-radius: 3px;
+      background: var(--border);
+      margin-top: 10px;
+      overflow: hidden;
+    }
+    .conn-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.4s ease;
+      background: var(--s1);
+    }
+    .s2 .conn-fill { background: var(--s2); }
+    .s3 .conn-fill { background: var(--s3); }
+
+    .active-indicator {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--yellow);
+      margin-right: 6px;
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* ── Request log table ── */
+    .log-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .log-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .log-header h2 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .log-count {
+      font-size: 0.8rem;
+      background: rgba(79,142,247,0.2);
+      color: var(--accent);
+      padding: 2px 10px;
+      border-radius: 20px;
+    }
+
+    .table-wrap { overflow-x: auto; max-height: 420px; overflow-y: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+    thead th {
+      padding: 10px 16px;
+      text-align: left;
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 0.72rem;
+      background: var(--surface);
+      position: sticky;
+      top: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    tbody tr:hover { background: rgba(255,255,255,0.04); }
+    tbody tr.new-row { animation: fadeIn 0.4s ease; }
+    @keyframes fadeIn {
+      from { background: rgba(79,142,247,0.2); }
+      to   { background: transparent; }
+    }
+    td { padding: 10px 16px; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-rr  { background: rgba(251,191,36,0.2);  color: var(--yellow); }
+    .badge-lc  { background: rgba(232,121,249,0.2); color: var(--magenta); }
+    .badge-ok  { background: rgba(52,211,153,0.2);  color: var(--green); }
+    .badge-err { background: rgba(248,113,113,0.2); color: var(--red); }
+    .badge-pending { background: rgba(79,142,247,0.2); color: var(--accent); }
+
+    .server-id { font-weight: 700; }
+    .s1-text { color: var(--s1); }
+    .s2-text { color: var(--s2); }
+    .s3-text { color: var(--s3); }
+
+    .req-id {
+      font-family: monospace;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    /* ── Summary stats ── */
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      text-align: center;
+    }
+    .stat-card .val {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .stat-card .lbl { font-size: 0.75rem; color: var(--muted); }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
+    }
+    .empty-state .icon { font-size: 2rem; margin-bottom: 8px; }
+
+    @media (max-width: 640px) {
+      .servers-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚖ Load <span>Balancer</span> Dashboard</h1>
+  <div class="status-badge">
+    <div class="dot" id="ws-dot"></div>
+    <span id="ws-label">Connecting…</span>
+  </div>
+</header>
+
+<!-- Summary -->
+<div class="summary">
+  <div class="stat-card">
+    <div class="val" id="stat-total">0</div>
+    <div class="lbl">Total Requests</div>
+  </div>
+  <div class="stat-card">
+    <div class="val" id="stat-pending" style="color:var(--yellow)">0</div>
+    <div class="lbl">In-Flight</div>
+  </div>
+  <div class="stat-card">
+    <div class="val" id="stat-ok" style="color:var(--green)">0</div>
+    <div class="lbl">Completed</div>
+  </div>
+  <div class="stat-card">
+    <div class="val" id="stat-algo" style="font-size:1rem;padding-top:6px">–</div>
+    <div class="lbl">Active Algorithm</div>
+  </div>
+</div>
+
+<!-- Controls -->
+<div class="grid">
+  <!-- Algorithm -->
+  <div class="card">
+    <div class="card-title">Algorithm</div>
+    <div class="algo-buttons">
+      <button class="algo-btn active" id="btn-rr" onclick="setAlgo('round-robin')">🔄 Round Robin</button>
+      <button class="algo-btn" id="btn-lc" onclick="setAlgo('least-connection')">📊 Least Connection</button>
+    </div>
+  </div>
+
+  <!-- Test Requests -->
+  <div class="card">
+    <div class="card-title">Send Test Requests</div>
+    <div class="controls">
+      <input class="count-input" type="number" id="req-count" value="9" min="1" max="50" />
+      <button class="send-btn" onclick="sendRequests()">▶ Send Requests</button>
+      <button class="clear-btn" onclick="clearLog()">✕ Clear Log</button>
+    </div>
+  </div>
+</div>
+
+<!-- Server Cards -->
+<div class="servers-grid">
+  <div class="server-card s1" id="card-server-1">
+    <div class="server-name">⬡ server-1</div>
+    <div class="stat-row"><span class="stat-label">Active Connections</span><span class="stat-value" id="s1-active">0</span></div>
+    <div class="stat-row"><span class="stat-label">Total Handled</span><span class="stat-value" id="s1-total">0</span></div>
+    <div class="conn-bar s1"><div class="conn-fill" id="s1-bar" style="width:0%"></div></div>
+  </div>
+  <div class="server-card s2" id="card-server-2">
+    <div class="server-name">⬡ server-2</div>
+    <div class="stat-row"><span class="stat-label">Active Connections</span><span class="stat-value" id="s2-active">0</span></div>
+    <div class="stat-row"><span class="stat-label">Total Handled</span><span class="stat-value" id="s2-total">0</span></div>
+    <div class="conn-bar s2"><div class="conn-fill" id="s2-bar" style="width:0%"></div></div>
+  </div>
+  <div class="server-card s3" id="card-server-3">
+    <div class="server-name">⬡ server-3</div>
+    <div class="stat-row"><span class="stat-label">Active Connections</span><span class="stat-value" id="s3-active">0</span></div>
+    <div class="stat-row"><span class="stat-label">Total Handled</span><span class="stat-value" id="s3-total">0</span></div>
+    <div class="conn-bar s3"><div class="conn-fill" id="s3-bar" style="width:0%"></div></div>
+  </div>
+</div>
+
+<!-- Request Log -->
+<div class="log-section">
+  <div class="log-header">
+    <h2>📋 Live Request Log</h2>
+    <span class="log-count" id="log-count">0 requests</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Request ID</th>
+          <th>Server</th>
+          <th>Algorithm</th>
+          <th>Timestamp</th>
+          <th>Time (ms)</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="log-body">
+        <tr>
+          <td colspan="7" class="empty-state">
+            <div class="icon">📭</div>
+            <div>No requests yet — click "Send Requests" to start</div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let currentAlgo = 'round-robin';
+  let rows = [];       // { requestId, serverId, algo, timestamp, status, ms }
+  let counter = { total: 0, pending: 0, ok: 0 };
+
+  // ── WebSocket ─────────────────────────────────────────────────────────────
+  let ws;
+  function connect() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${proto}://${location.host}`);
+
+    ws.onopen = () => {
+      document.getElementById('ws-dot').classList.add('connected');
+      document.getElementById('ws-label').textContent = 'Connected';
+    };
+
+    ws.onclose = () => {
+      document.getElementById('ws-dot').classList.remove('connected');
+      document.getElementById('ws-label').textContent = 'Reconnecting…';
+      setTimeout(connect, 2000);
+    };
+
+    ws.onerror = () => ws.close();
+
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      handleMessage(msg);
+    };
+  }
+
+  connect();
+
+  function handleMessage(msg) {
+    switch (msg.type) {
+      case 'init':
+        currentAlgo = msg.algorithm;
+        updateAlgoUI(msg.algorithm);
+        updateServers(msg.servers);
+        // Replay log
+        rows = [];
+        counter = { total: 0, pending: 0, ok: 0 };
+        msg.log.forEach(entry => {
+          addOrUpdateRow(entry);
+        });
+        break;
+
+      case 'algorithm_change':
+        currentAlgo = msg.algorithm;
+        updateAlgoUI(msg.algorithm);
+        break;
+
+      case 'request_start':
+        counter.total++;
+        counter.pending++;
+        addOrUpdateRow(msg.entry);
+        updateServers(msg.servers);
+        updateSummary();
+        break;
+
+      case 'request_done':
+        counter.pending = Math.max(0, counter.pending - 1);
+        if (msg.entry.status === 'ok') counter.ok++;
+        addOrUpdateRow(msg.entry);
+        updateServers(msg.servers);
+        updateSummary();
+        break;
+    }
+  }
+
+  // ── Algorithm UI ──────────────────────────────────────────────────────────
+  function updateAlgoUI(algo) {
+    const rrBtn = document.getElementById('btn-rr');
+    const lcBtn = document.getElementById('btn-lc');
+    if (algo === 'round-robin') {
+      rrBtn.classList.add('active');
+      rrBtn.classList.remove('lc');
+      lcBtn.classList.remove('active', 'lc');
+    } else {
+      lcBtn.classList.add('active', 'lc');
+      rrBtn.classList.remove('active');
+    }
+    document.getElementById('stat-algo').textContent =
+      algo === 'round-robin' ? 'Round Robin' : 'Least Conn';
+  }
+
+  async function setAlgo(algo) {
+    await fetch('/api/algorithm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ algo }),
+    });
+  }
+
+  // ── Send requests ─────────────────────────────────────────────────────────
+  async function sendRequests() {
+    const count = parseInt(document.getElementById('req-count').value) || 9;
+    await fetch('/api/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ count }),
+    });
+  }
+
+  // ── Server cards ──────────────────────────────────────────────────────────
+  function updateServers(servers) {
+    const maxConn = Math.max(...servers.map(s => s.activeConnections), 1);
+    servers.forEach(s => {
+      const idx = s.id.split('-')[1];
+      const el = (id) => document.getElementById(`s${idx}-${id}`);
+      el('active').textContent = s.activeConnections;
+      el('total').textContent  = s.totalRequests;
+      const pct = Math.round((s.activeConnections / maxConn) * 100);
+      el('bar').style.width = `${Math.max(pct, 2)}%`;
+
+      // Highlight card if it has active connections
+      const card = document.getElementById(`card-${s.id}`);
+      if (s.activeConnections > 0) {
+        card.style.boxShadow = `0 0 14px rgba(79,142,247,0.25)`;
+      } else {
+        card.style.boxShadow = 'none';
+      }
+    });
+  }
+
+  // ── Summary ───────────────────────────────────────────────────────────────
+  function updateSummary() {
+    document.getElementById('stat-total').textContent   = counter.total;
+    document.getElementById('stat-pending').textContent = counter.pending;
+    document.getElementById('stat-ok').textContent      = counter.ok;
+  }
+
+  // ── Request log ───────────────────────────────────────────────────────────
+  function serverClass(id) {
+    const map = { 'server-1': 's1-text', 'server-2': 's2-text', 'server-3': 's3-text' };
+    return map[id] || '';
+  }
+
+  function shortId(id) {
+    return id ? id.substring(0, 8) + '…' : '–';
+  }
+
+  function statusBadge(status) {
+    if (status === 'ok')      return `<span class="badge badge-ok">✓ OK</span>`;
+    if (status === 'error')   return `<span class="badge badge-err">✗ Error</span>`;
+    return `<span class="badge badge-pending">⋯ Pending</span>`;
+  }
+
+  function algoBadge(algo) {
+    if (algo === 'round-robin')     return `<span class="badge badge-rr">Round Robin</span>`;
+    if (algo === 'least-connection') return `<span class="badge badge-lc">Least Conn</span>`;
+    return algo;
+  }
+
+  function addOrUpdateRow(entry) {
+    const existing = rows.find(r => r.requestId === entry.requestId);
+    if (existing) {
+      Object.assign(existing, entry);
+    } else {
+      rows.unshift(entry);
+      if (rows.length > 100) rows.pop();
+    }
+    renderTable();
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('log-body');
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="empty-state">
+        <div class="icon">📭</div><div>No requests yet — click "Send Requests" to start</div>
+      </td></tr>`;
+      document.getElementById('log-count').textContent = '0 requests';
+      return;
+    }
+    document.getElementById('log-count').textContent = `${rows.length} requests`;
+    tbody.innerHTML = rows.map((r, i) => `
+      <tr class="${i === 0 ? 'new-row' : ''}">
+        <td style="color:var(--muted)">${rows.length - i}</td>
+        <td class="req-id" title="${r.requestId}">${shortId(r.requestId)}</td>
+        <td class="server-id ${serverClass(r.serverId)}">${r.serverId || '–'}</td>
+        <td>${algoBadge(r.algorithm)}</td>
+        <td style="color:var(--muted);font-size:0.78rem">${formatTime(r.timestamp)}</td>
+        <td style="color:var(--text)">${r.processingTimeMs != null ? r.processingTimeMs + 'ms' : '–'}</td>
+        <td>${statusBadge(r.status)}</td>
+      </tr>
+    `).join('');
+  }
+
+  function formatTime(ts) {
+    if (!ts) return '–';
+    const d = new Date(ts);
+    return d.toLocaleTimeString('en-US', { hour12: false }) +
+      '.' + String(d.getMilliseconds()).padStart(3, '0');
+  }
+
+  function clearLog() {
+    rows = [];
+    counter = { total: 0, pending: 0, ok: 0 };
+    renderTable();
+    updateSummary();
+  }
+</script>
+</body>
+</html>
